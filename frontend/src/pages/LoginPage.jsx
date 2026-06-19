@@ -28,7 +28,7 @@ export default function LoginPage() {
       gap: '20px'
     }}>
       <div style={{ textAlign: 'center' }}>
-        <h1>Sarvam Document Digitizer</h1>
+        <h1>Abhilekh</h1>
         <p className="text-muted">
           Convert legacy government documents to digital format
         </p>

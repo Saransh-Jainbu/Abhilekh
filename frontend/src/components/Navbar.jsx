@@ -29,8 +29,8 @@ export default function Navbar() {
   return (
     <nav className="app-nav">
       <div className="app-brand" onClick={() => navigate('/documents')}>
-        <span className="mark">स</span>
-        Sarvam Digitizer
+        <span className="mark">अ</span>
+        Abhilekh
       </div>
 
       <div className="app-nav-right">

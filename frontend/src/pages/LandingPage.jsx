@@ -138,8 +138,8 @@ export default function LandingPage() {
         <nav className={`nav ${scrolled ? 'scrolled' : ''}`}>
           <div className="nav-inner">
             <div className="brand">
-              <span className="brand-mark">स</span>
-              Sarvam Digitizer
+              <span className="brand-mark">अ</span>
+              Abhilekh
             </div>
             <div className="nav-links">
               <a href="#features">Features</a>
@@ -291,7 +291,7 @@ export default function LandingPage() {
             <div className="section-head reveal">
               <div className="eyebrow">Where it shines</div>
               <h2>Built for the real world of records</h2>
-              <p>Wherever paper piles up and languages diverge, the digitizer earns its keep.</p>
+              <p>Wherever paper piles up and languages diverge, Abhilekh earns its keep.</p>
             </div>
             <div className="uc-grid">
               {USE_CASES.map(([emoji, title, body], i) => (
@@ -324,8 +324,8 @@ export default function LandingPage() {
           <div className="footer-inner">
             <div>
               <div className="brand">
-                <span className="brand-mark">स</span>
-                Sarvam Digitizer
+                <span className="brand-mark">अ</span>
+                Abhilekh
               </div>
               <p className="footer-tag">
                 Government document digitization for India, powered by Sarvam AI.
@@ -353,7 +353,7 @@ export default function LandingPage() {
             </div>
           </div>
           <div className="footer-bottom">
-            <span>© {new Date().getFullYear()} Sarvam Digitizer</span>
+            <span>© {new Date().getFullYear()} Abhilekh</span>
             <span>Made with care for Bharat 🇮🇳</span>
           </div>
         </footer>
