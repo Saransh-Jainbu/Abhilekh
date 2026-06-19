@@ -76,17 +76,12 @@ async function splitPdfIntoPages(pdfBuffer) {
   }
 }
 
-// Build the single upload artifact: PDFs go as-is, images are wrapped in a ZIP
+// Build the single upload artifact. Document Intelligence accepts raw PDFs and
+// images directly, so we upload the file bytes under their real name. (An
+// earlier version zipped images, but uploading ZIP bytes under a .jpg name made
+// Sarvam reject them as "corrupted image".)
 function buildUploadArtifact(filePath, filename) {
-  const ext = path.extname(filename).toLowerCase();
-  if (ext === '.pdf') {
-    return { buffer: fs.readFileSync(filePath), uploadName: filename };
-  }
-  // image -> zip containing the image
-  const zip = new AdmZip();
-  zip.addLocalFile(filePath);
-  const base = path.basename(filename, ext);
-  return { buffer: zip.toBuffer(), uploadName: `${base}.zip` };
+  return { buffer: fs.readFileSync(filePath), uploadName: filename };
 }
 
 // Extract readable text from the result ZIP, preserving page structure.
@@ -319,8 +314,8 @@ async function extractText(filePath, filename, languageCode = 'hi-IN') {
     };
   } else {
     // Image or other format — process as single document
-    const { buffer } = buildUploadArtifact(filePath, filename);
-    const text = await processSingleDocument(buffer, filename, languageCode);
+    const { buffer, uploadName } = buildUploadArtifact(filePath, filename);
+    const text = await processSingleDocument(buffer, uploadName, languageCode);
     return { text, pages: [text] };
   }
 }

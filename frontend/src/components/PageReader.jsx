@@ -126,6 +126,12 @@ export default function PageReader({ documentId, fileType, originalPages, origin
   const hasPerPage = Array.isArray(pagesForLang) && pagesForLang.length >= numPages && numPages > 1;
 
   const currentText = hasPerPage ? pagesForLang[page - 1] || '' : null;
+  // Single-page documents (images, and PDFs OCR'd as one block) don't have
+  // per-page segmentation, so fall back to the first/only text block.
+  const singleText =
+    (Array.isArray(pagesForLang) && pagesForLang[0]) ||
+    (lang === 'original' ? originalText : '') ||
+    '';
   const textTag = lang === 'original' ? 'Extracted text' : `${LANGUAGES[lang]} translation`;
 
   const go = (delta) => setPage((p) => Math.min(Math.max(1, p + delta), numPages));
@@ -217,7 +223,7 @@ export default function PageReader({ documentId, fileType, originalPages, origin
           </div>
           <div className="reader-right">
             <div className="page-tag">{textTag}</div>
-            <p className="page-text">{currentText || <span className="muted">— no text —</span>}</p>
+            <p className="page-text">{singleText || <span className="muted">— no text —</span>}</p>
           </div>
         </div>
       )}
