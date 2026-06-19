@@ -6,10 +6,18 @@ async function runMigrations() {
   try {
     console.log('Starting migrations...');
 
-    const migrationFile = path.join(__dirname, 'migrations', '001_init_schema.sql');
-    const sql = fs.readFileSync(migrationFile, 'utf-8');
+    const migrationsDir = path.join(__dirname, 'migrations');
+    const files = fs
+      .readdirSync(migrationsDir)
+      .filter((f) => f.endsWith('.sql'))
+      .sort();
 
-    await pool.query(sql);
+    for (const file of files) {
+      const sql = fs.readFileSync(path.join(migrationsDir, file), 'utf-8');
+      await pool.query(sql);
+      console.log(`✓ Applied ${file}`);
+    }
+
     console.log('✓ Database schema initialized successfully');
 
     await pool.end();
