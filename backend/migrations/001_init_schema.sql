@@ -48,9 +48,9 @@ CREATE TABLE IF NOT EXISTS chat_messages (
 );
 
 -- Create indexes
-CREATE INDEX idx_documents_user_id ON documents(user_id);
-CREATE INDEX idx_documents_status ON documents(status);
-CREATE INDEX idx_insights_document_id ON insights(document_id);
-CREATE INDEX idx_translations_document_id ON translations(document_id);
-CREATE INDEX idx_chat_messages_document_id ON chat_messages(document_id);
-CREATE INDEX idx_chat_messages_user_id ON chat_messages(user_id);
+CREATE INDEX IF NOT EXISTS idx_documents_user_id ON documents(user_id);
+CREATE INDEX IF NOT EXISTS idx_documents_status ON documents(status);
+CREATE INDEX IF NOT EXISTS idx_insights_document_id ON insights(document_id);
+CREATE INDEX IF NOT EXISTS idx_translations_document_id ON translations(document_id);
+CREATE INDEX IF NOT EXISTS idx_chat_messages_document_id ON chat_messages(document_id);
+CREATE INDEX IF NOT EXISTS idx_chat_messages_user_id ON chat_messages(user_id);
