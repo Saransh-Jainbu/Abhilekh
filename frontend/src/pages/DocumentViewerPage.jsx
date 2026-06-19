@@ -1,158 +1,190 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { documents } from '../services/api';
-import InsightsPanel from '../components/InsightsPanel';
 import ChatPanel from '../components/ChatPanel';
 import TranslationPanel from '../components/TranslationPanel';
+import ProgressStepper from '../components/ProgressStepper';
+import PageReader from '../components/PageReader';
+import '../styles/app.css';
 
 export default function DocumentViewerPage() {
   const { id } = useParams();
   const navigate = useNavigate();
   const [doc, setDoc] = useState(null);
   const [insights, setInsights] = useState(null);
-  const [processing, setProcessing] = useState(false);
-  const [activeTab, setActiveTab] = useState('original');
+  const [stage, setStage] = useState(null);
+  const [status, setStatus] = useState(null);
+  const [activeTab, setActiveTab] = useState('reader');
+  const pollRef = useRef(null);
 
   useEffect(() => {
     fetchDocument();
-    const interval = setInterval(checkStatus, 2000);
-    return () => clearInterval(interval);
+    fetchInsights();
+    pollRef.current = setInterval(pollStatus, 2500);
+    return () => clearInterval(pollRef.current);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [id]);
 
   const fetchDocument = async () => {
     try {
-      const response = await documents.get(id);
-      setDoc(response.data);
-    } catch (error) {
-      console.error('Failed to fetch document:', error);
-    }
-  };
-
-  const checkStatus = async () => {
-    try {
-      const response = await documents.getStatus(id);
-      if (response.data.status === 'completed' && !insights) {
-        fetchDocument();
-        fetchInsights();
-      }
-    } catch (error) {
-      console.error('Status check failed:', error);
+      const res = await documents.get(id);
+      setDoc(res.data);
+      setStatus(res.data.status);
+      setStage(res.data.stage);
+    } catch (e) {
+      console.error('Failed to fetch document:', e);
     }
   };
 
   const fetchInsights = async () => {
     try {
-      const response = await documents.getInsights(id);
-      setInsights(response.data.insights);
-    } catch (error) {
-      console.error('Failed to fetch insights:', error);
+      const res = await documents.getInsights(id);
+      setInsights(res.data.insights);
+    } catch (e) {
+      console.error('Failed to fetch insights:', e);
     }
   };
 
-  const handleProcess = async () => {
+  const pollStatus = async () => {
     try {
-      setProcessing(true);
+      const res = await documents.getStatus(id);
+      setStatus(res.data.status);
+      setStage(res.data.stage);
+      if (res.data.status === 'completed' || res.data.status === 'failed') {
+        clearInterval(pollRef.current);
+        fetchDocument();
+        fetchInsights();
+      }
+    } catch (e) {
+      console.error('Status poll failed:', e);
+    }
+  };
+
+  const handleRetry = async () => {
+    try {
       await documents.process(id);
-    } catch (error) {
-      console.error('Processing failed:', error);
-      alert('Processing failed: ' + error.message);
-    } finally {
-      setProcessing(false);
+      setStatus('processing');
+      setStage('extracting');
+      pollRef.current = setInterval(pollStatus, 2500);
+    } catch (e) {
+      console.error('Retry failed:', e);
     }
   };
 
   if (!doc) {
     return (
-      <div className="container text-center">
-        <div className="spinner" style={{ margin: '20px auto' }}></div>
-        <p>Loading document...</p>
+      <div className="viewer">
+        <div className="reader-empty">
+          <div className="spinner-lg" />
+          Loading document…
+        </div>
       </div>
     );
   }
 
+  const isProcessing = status === 'processing' || stage === 'extracting' || stage === 'analyzing';
+  const isFailed = status === 'failed' || stage === 'failed';
+  const isDone = status === 'completed';
+
+  const tabs = [
+    { id: 'reader', label: 'Side-by-side' },
+    { id: 'extracted', label: 'Extracted Text' },
+    { id: 'translate', label: 'Translation' },
+    { id: 'chat', label: 'Chat' },
+  ];
+
   return (
-    <div className="container">
-      <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '20px' }}>
-        <div>
-          <h2>{doc.filename}</h2>
-          <p className="text-muted">Status: {doc.status}</p>
-        </div>
-        <div>
-          {doc.status === 'pending' && (
-            <button onClick={handleProcess} disabled={processing}>
-              {processing ? 'Processing...' : 'Process Document'}
-            </button>
-          )}
-          <button onClick={() => navigate('/documents')} style={{ marginLeft: '10px' }}>
-            Back
-          </button>
-        </div>
+    <div className="viewer">
+      {/* Header */}
+      <div className="viewer-head">
+        <button className="viewer-back" onClick={() => navigate('/documents')}>
+          ← Back to dashboard
+        </button>
+        <h1 className="viewer-title">
+          <span className="doc-icon">📄</span> {doc.filename}
+        </h1>
       </div>
 
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 300px', gap: '20px', minHeight: '60vh' }}>
-        {/* Main content */}
-        <div>
-          <div style={{ display: 'flex', gap: '10px', marginBottom: '16px' }}>
-            <button
-              onClick={() => setActiveTab('original')}
-              style={{
-                background: activeTab === 'original' ? '#000' : '#f0f0f0',
-                color: activeTab === 'original' ? '#fff' : '#000',
-              }}
-            >
-              Original
-            </button>
-            <button
-              onClick={() => setActiveTab('extracted')}
-              style={{
-                background: activeTab === 'extracted' ? '#000' : '#f0f0f0',
-                color: activeTab === 'extracted' ? '#fff' : '#000',
-              }}
-            >
-              Extracted Text
-            </button>
-            <button
-              onClick={() => setActiveTab('chat')}
-              style={{
-                background: activeTab === 'chat' ? '#000' : '#f0f0f0',
-                color: activeTab === 'chat' ? '#fff' : '#000',
-              }}
-            >
-              Chat
-            </button>
+      {/* Processing state */}
+      {isProcessing && (
+        <div className="viewer-card pad">
+          <ProgressStepper stage={stage} />
+        </div>
+      )}
+
+      {/* Failed state */}
+      {isFailed && (
+        <div className="viewer-card pad center">
+          <div style={{ fontSize: '40px', marginBottom: '12px' }}>⚠️</div>
+          <h3 style={{ margin: '0 0 8px', color: 'var(--err)' }}>Processing failed</h3>
+          <p style={{ color: 'var(--ink-soft)', marginBottom: '20px' }}>
+            Something went wrong while digitizing this document.
+          </p>
+          <button className="btn btn-accent" onClick={handleRetry}>Retry</button>
+        </div>
+      )}
+
+      {/* Completed state */}
+      {isDone && (
+        <div className="viewer-grid">
+          {/* Main panel */}
+          <div className="viewer-card">
+            <div className="viewer-tabs">
+              {tabs.map((tab) => (
+                <button
+                  key={tab.id}
+                  className={`viewer-tab ${activeTab === tab.id ? 'active' : ''}`}
+                  onClick={() => setActiveTab(tab.id)}
+                >
+                  {tab.label}
+                </button>
+              ))}
+            </div>
+
+            <div className="viewer-tab-body">
+              {activeTab === 'reader' && (
+                <PageReader
+                  documentId={id}
+                  fileType={doc.file_type}
+                  originalPages={doc.original_pages}
+                  originalText={doc.original_text}
+                />
+              )}
+              {activeTab === 'extracted' && (
+                <pre className="extracted-text">{doc.original_text || 'No text extracted.'}</pre>
+              )}
+              {activeTab === 'translate' && <TranslationPanel documentId={id} />}
+              {activeTab === 'chat' && <ChatPanel documentId={id} />}
+            </div>
           </div>
 
-          <div className="card p-3">
-            {activeTab === 'original' && (
-              <div>
-                <p className="text-muted">Original document (PDF/Image)</p>
-                <p style={{ color: '#999' }}>Document preview would appear here</p>
-              </div>
-            )}
-            {activeTab === 'extracted' && (
-              <div>
-                <p className="text-muted mb-2">Extracted Text</p>
-                {doc.original_text ? (
-                  <pre style={{ whiteSpace: 'pre-wrap', wordWrap: 'break-word' }}>
-                    {doc.original_text}
-                  </pre>
-                ) : (
-                  <p className="text-muted">No text extracted yet</p>
-                )}
-              </div>
-            )}
-            {activeTab === 'chat' && (
-              <ChatPanel documentId={id} />
-            )}
+          {/* Sidebar */}
+          <div className="viewer-side">
+            <div className="viewer-card pad">
+              <h3 className="side-title">💡 Insights</h3>
+              <p className="side-insight">{insights || 'No insights generated.'}</p>
+              <p className="side-meta">Generated by Sarvam-105B</p>
+            </div>
+
+            <div className="viewer-card pad">
+              <h3 className="side-title">Document Info</h3>
+              <InfoRow label="Status" value="Completed" />
+              <InfoRow label="Pages" value={Array.isArray(doc.original_pages) ? doc.original_pages.length : '—'} />
+              <InfoRow label="Characters" value={(doc.original_text || '').length.toLocaleString()} />
+              <InfoRow label="Uploaded" value={new Date(doc.created_at).toLocaleDateString('en-IN')} />
+            </div>
           </div>
         </div>
+      )}
+    </div>
+  );
+}
 
-        {/* Sidebar */}
-        <div>
-          <InsightsPanel insights={insights} />
-          <TranslationPanel documentId={id} />
-        </div>
-      </div>
+function InfoRow({ label, value }) {
+  return (
+    <div className="info-row">
+      <span>{label}</span>
+      <span className="info-val">{value}</span>
     </div>
   );
 }

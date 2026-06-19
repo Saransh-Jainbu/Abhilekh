@@ -1,31 +1,49 @@
 import { useNavigate } from 'react-router-dom';
 import { auth } from '../services/api';
+import '../styles/app.css';
 
 export default function Navbar() {
   const navigate = useNavigate();
 
+  let user = {};
+  try {
+    user = JSON.parse(localStorage.getItem('user')) || {};
+  } catch {
+    user = {};
+  }
+
+  const initial = (user.email || '?').charAt(0).toUpperCase();
+
   const handleLogout = async () => {
     try {
       await auth.logout();
-      localStorage.removeItem('sessionId');
-      navigate('/');
     } catch (error) {
       console.error('Logout failed:', error);
+    } finally {
+      localStorage.removeItem('sessionId');
+      localStorage.removeItem('user');
+      navigate('/');
     }
   };
 
   return (
-    <nav style={{
-      borderBottom: '1px solid #e0e0e0',
-      padding: '16px 20px',
-      display: 'flex',
-      justifyContent: 'space-between',
-      alignItems: 'center',
-    }}>
-      <h1 style={{ fontSize: '20px', margin: 0, cursor: 'pointer' }} onClick={() => navigate('/documents')}>
+    <nav className="app-nav">
+      <div className="app-brand" onClick={() => navigate('/documents')}>
+        <span className="mark">स</span>
         Sarvam Digitizer
-      </h1>
-      <button onClick={handleLogout}>Logout</button>
+      </div>
+
+      <div className="app-nav-right">
+        {user.email && (
+          <div className="app-user">
+            <div className="app-avatar">{initial}</div>
+            <span className="app-user-email">{user.email}</span>
+          </div>
+        )}
+        <button className="btn btn-ghost" onClick={handleLogout}>
+          Logout
+        </button>
+      </div>
     </nav>
   );
 }

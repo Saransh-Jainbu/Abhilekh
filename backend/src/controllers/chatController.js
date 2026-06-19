@@ -5,10 +5,10 @@ const { chatWithDocument } = require('../services/sarvamService');
 async function sendMessage(req, res) {
   try {
     const { documentId } = req.params;
-    const { content } = req.body;
+    const { message, language } = req.body;
     const { user } = req;
 
-    if (!content) {
+    if (!message) {
       return res.status(400).json({ error: 'Message content is required' });
     }
 
@@ -23,38 +23,50 @@ async function sendMessage(req, res) {
     }
 
     // Save user message
-    const userMsgResult = await pool.query(
-      'INSERT INTO chat_messages (document_id, user_id, role, content) VALUES ($1, $2, $3, $4) RETURNING *',
-      [documentId, user.id, 'user', content]
+    await pool.query(
+      'INSERT INTO chat_messages (document_id, user_id, role, content) VALUES ($1, $2, $3, $4)',
+      [documentId, user.id, 'user', message]
     );
 
-    // Get chat history
+    // Get chat history (last 10 messages, excluding the one we just added)
     const historyResult = await pool.query(
-      'SELECT role, content FROM chat_messages WHERE document_id = $1 ORDER BY created_at DESC LIMIT 10',
+      'SELECT role, content FROM chat_messages WHERE document_id = $1 ORDER BY created_at DESC LIMIT 11',
       [documentId]
     );
 
-    const chatHistory = historyResult.rows.reverse().slice(0, -1); // Exclude the message we just added
+    const chatHistory = historyResult.rows.reverse().slice(0, -1);
 
-    // Generate response via Sarvam 105B
-    setImmediate(async () => {
-      try {
-        const response = await chatWithDocument(doc.original_text, chatHistory, content);
+    // Set up SSE response
+    res.setHeader('Content-Type', 'text/event-stream');
+    res.setHeader('Cache-Control', 'no-cache');
+    res.setHeader('Connection', 'keep-alive');
 
-        // Save assistant message
-        await pool.query(
-          'INSERT INTO chat_messages (document_id, user_id, role, content) VALUES ($1, $2, $3, $4)',
-          [documentId, user.id, 'assistant', response]
-        );
-      } catch (error) {
-        console.error('Chat error:', error);
+    // Generate response and stream it
+    try {
+      const languageCode = language || 'en';
+      const response = await chatWithDocument(doc.original_text, chatHistory, message, languageCode);
+
+      // Stream the response in chunks
+      const chunkSize = 20;
+      for (let i = 0; i < response.length; i += chunkSize) {
+        const chunk = response.slice(i, i + chunkSize);
+        res.write(`data: ${JSON.stringify({ text: chunk })}\n\n`);
       }
-    });
 
-    res.json({
-      message: userMsgResult.rows[0],
-      content: 'Generating response...',
-    });
+      // Save assistant message
+      await pool.query(
+        'INSERT INTO chat_messages (document_id, user_id, role, content) VALUES ($1, $2, $3, $4)',
+        [documentId, user.id, 'assistant', response]
+      );
+
+      // Send done signal
+      res.write(`data: ${JSON.stringify({ done: true })}\n\n`);
+      res.end();
+    } catch (error) {
+      console.error('Chat generation error:', error);
+      res.write(`data: ${JSON.stringify({ error: error.message })}\n\n`);
+      res.end();
+    }
   } catch (error) {
     console.error('Send message error:', error);
     res.status(500).json({ error: 'Failed to send message' });

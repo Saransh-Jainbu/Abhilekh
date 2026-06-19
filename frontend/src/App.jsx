@@ -26,7 +26,7 @@ function App() {
             path="/*"
             element={
               <ProtectedRoute>
-                <div style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column' }}>
+                <div className="app-bg" style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column' }}>
                   <Navbar />
                   <div style={{ flex: 1 }}>
                     <Routes>
